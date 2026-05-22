@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>notepad</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        /* Barra superior con controles */
+        #top-bar {
+            display: flex;
+            background: #111;
+            padding: 8px 15px;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+        }
+        .controls-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .controls-right {
+            display: flex;
+            gap: 8px;
+        }
+        /* Estilo del deslizador de tamaño */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #ccc;
+        }
+        input[type="range"] {
+            cursor: pointer;
+            accent-color: #0f0;
+        }
+        /* Estilo de los botones */
+        .btn {
+            background: #252526;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 5px 12px;
+            font-family: monospace;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #333337;
+            border-color: #0f0;
+        }
+        /* Área de texto */
+        #notepad {
+            flex: 1;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            outline: none;
+            background-color: transparent;
+            color: inherit;
+            font-family: inherit;
+            font-size: 16px; /* Base 100% */
+            resize: none;
+        }
+        /* Barra de comandos inferior (solo para color) */
+        #cmd-bar {
+            display: flex;
+            background: #111;
+            padding: 5px 10px;
+            align-items: center;
+            border-top: 1px solid #333;
+        }
+        #cmd-label {
+            font-size: 14px;
+            color: #0f0;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        #cmd-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        #file-loader {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <!-- Nueva barra superior -->
+    <div id="top-bar">
+        <div class="controls-left">
+            <div class="slider-container">
+                <label for="zoom-slider">Letra:</label>
+                <input type="range" id="zoom-slider" min="50" max="250" value="100">
+                <span id="zoom-value">100%</span>
+            </div>
+        </div>
+        <div class="controls-right">
+            <button class="btn" id="btn-abrir">Abrir</button>
+            <button class="btn" id="btn-guardar">Guardar</button>
+        </div>
+    </div>
+
+    <textarea id="notepad" placeholder="Escribí acá... Presioná F2 para ir a la barra de colores."></textarea>
+    
+    <!-- Barra de comandos inferior (exclusiva para color) -->
+    <div id="cmd-bar">
+        <span id="cmd-label">>_</span>
+        <input type="text" id="cmd-input" placeholder="Comando: color [fondo] [texto opcional]. Ej: color black green">
+    </div>
+</div>
+
+<input type="file" id="file-loader">
+
+<script>
+    const notepad = document.getElementById('notepad');
+    const cmdInput = document.getElementById('cmd-input');
+    const fileLoader = document.getElementById('file-loader');
+    const zoomSlider = document.getElementById('zoom-slider');
+    const zoomValue = document.getElementById('zoom-value');
+    
+    const btnAbrir = document.getElementById('btn-abrir');
+    const btnGuardar = document.getElementById('btn-guardar');
+    
+    let currentFileName = "archivo.txt";
+    const baseFontSize = 16; // 100% equivale a 16px
+
+    // --- Control de la barra deslizadora (Tamaño de Letra) ---
+    zoomSlider.addEventListener('input', () => {
+        const percent = zoomSlider.value;
+        zoomValue.textContent = percent + "%";
+        // Calculamos los píxeles basados en el porcentaje
+        notepad.style.fontSize = (baseFontSize * (percent / 100)) + "px";
+    });
+
+    // --- Botones Físicos (Abrir y Guardar) ---
+    btnAbrir.addEventListener('click', () => {
+        fileLoader.click();
+    });
+
+    btnGuardar.addEventListener('click', () => {
+        // Al tocar guardar, te pregunta rápido el nombre si querés cambiarlo
+        const nuevoNombre = prompt("Guardar como (podés cambiar la extensión):", currentFileName);
+        if (nuevoNombre !== null) {
+            currentFileName = nuevoNombre ? nuevoNombre : currentFileName;
+            saveFile(currentFileName);
+        }
+    });
+
+    // --- Consola de Comandos Inferior (Solo para colores) ---
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'F2') {
+            e.preventDefault();
+            cmdInput.focus();
+        }
+    });
+
+    cmdInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const input = cmdInput.value.trim();
+            cmdInput.value = '';
+            if (input) executeColorCommand(input);
+            notepad.focus();
+        }
+    });
+
+    function executeColorCommand(rawCmd) {
+        const parts = rawCmd.split(' ');
+        const cmd = parts[0].toLowerCase();
+
+        if (cmd === 'color' || cmd === 'c') {
+            if (parts[2]) {
+                document.body.style.backgroundColor = parts[1];
+                notepad.style.color = parts[2];
+                cmdInput.style.color = parts[2];
+            } else if (parts[1]) {
+                document.body.style.backgroundColor = parts[1];
+            }
+        } else {
+            alert("Para cambiar de color usa: color [fondo] [letras]");
+        }
+    }
+
+    // Funciones lógicas de archivos
+    function saveFile(filename) {
+        const text = notepad.value;
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = window.URL.createObjectURL(blob);
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    fileLoader.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        currentFileName = file.name;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            notepad.value = e.target.result;
+        };
+        reader.readAsText(file);
+    });
+</script>
+
+</body>
+</html>
